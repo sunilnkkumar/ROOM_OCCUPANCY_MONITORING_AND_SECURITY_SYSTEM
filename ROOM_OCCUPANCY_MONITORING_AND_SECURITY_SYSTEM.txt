@@ -1,0 +1,130 @@
+CODE
+ #include <LPC214x.h>
+ #include<stdio.h>
+ #include<string.h>
+
+int s=0,m=0,h=0,x,y,z,b=0;		 
+///////////////////////////////////////////      INTERRUPT SEC       /////////////////////////////////////////////////
+
+ void FIQ_Handler()__fiq
+{
+            char ch[20];
+           char a[]="AT\r",
+                   a1[]="AT+CMGF=1\r",
+	       a2[]="AT+CMGS=\"9961901607\"\r" ;
+s=CTIME0&0X3F;
+m=CTIME0&0X3F00;
+m=m>>8;
+h=CTIME0&0X1F0000;
+h=h>>16;
+sprintf(ch,"%d:%d:%d   \r",h,m,s);
+puts(ch);
+U1THR=0X0D;
+while((U1LSR&0X40)==0); 
+
+///////////////////////////////////////////////////time controlled led////////////////////////////////////////////
+
+b=IOPIN1;
+if(b==0X80000000&&h==12&&m==55&&s==59)
+{
+IOSET0=0XFFFFFFFF;
+//for(m=0;m<10;m++)
+//for(n=0;n<500;n++);
+}
+
+//////////////////////////////////////////////////////security alarm/////////////////////////////////////////////////
+
+else if(h==12&&m==56&&s==2)
+{
+puts(a);
+U0THR=0X0D;			   
+puts(a1);
+U0THR=0X0D;  
+puts(a2);
+U0THR=0X0D; 
+}
+else 
+{
+IOCLR0=0XFFFFFFFF;
+} 
+}
+void main()
+{
+/////////////////////////////////////////////////////////////INT ENABLE//////////////////////////////////////
+
+VICIntSelect=0X00002000;	                                                          //RTC	
+VICIntEnable=0X00002000;
+
+//////////////////////////////////////////    UART1 ENABLE    ////////////////////////////////////////////
+
+PINSEL0=0X00050005;
+PINSEL1=0;
+PINSEL2=0;
+IODIR0=0XFFFFFFFF;
+IODIR1=0X7FFFFFFF;
+
+U1LCR=0X00000083;
+U1DLL=0X00000061;
+U1LCR=0X00000003;
+
+/////////////////////////////////////////////////////////UART0 ENABLE//////////////////////////////////////////
+
+U0LCR=0X00000083;
+U0DLL=0X00000061;
+U0LCR=0X00000003;
+
+/////////////////////////////////////////////////////////         time setting           ////////////////////////////////////
+
+      while((U0LSR&0X01)==0);
+      h=(U0RBR-48)*10;
+	  HOUR=h;
+      U0THR=(h/10)+48;
+      while((U0LSR&0X40)==0);
+      U0LSR=U0LSR&0X40;
+      while((U0LSR&0X01)==0);
+      x=U0RBR-48;
+      h=h+x;
+	  HOUR=h;
+      U0THR=x+48;
+      while((U0LSR&0X40)==0);
+      U0LSR=U0LSR&0X40;
+
+      while((U0LSR&0X01)==0);
+      m=(U0RBR-48)*10;
+	  MIN=m;
+      U0THR=(m/10)+48;
+      while((U0LSR&0X40)==0);
+      U0LSR=U0LSR&0X40;
+      while((U0LSR&0X01)==0);
+      y=U0RBR-48;
+      m=m+y;
+	  MIN=m;
+      U0THR=y+48;
+      while((U0LSR&0X40)==0);
+      U0LSR=U0LSR&0X40;
+
+      while((U0LSR&0X01)==0);
+      s=(U0RBR-48)*10;
+	  SEC=s;
+      U0THR=(s/10)+48;
+      while((U0LSR&0X40)==0);
+      U0LSR=U0LSR&0X40;
+      while((U0LSR&0X01)==0);
+      z=U0RBR-48;
+      s=s+z;
+	  SEC=s;
+      U0THR=z+48;
+      while((U0LSR&0X40)==0);
+      U0LSR=U0LSR&0X40;
+      U0LSR=0X01; //CLEAR RECIEVE FLAG      
+//////////////////////////////////////////////////////////RTC ENABLE//////////////////////////////////////////////
+CCR=0x012;
+CIIR=0x01;		  
+CTIME0=0X00;
+ILR=0x01;
+CCR=0X11;
+PREINT=0X16D;
+PREFRAC=0X1B00;
+while(1);
+
+}
